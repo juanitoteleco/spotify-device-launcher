@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotify Panel</title>
+<style>
+:root{--bg:#18212b;--card:#223041;--ink:#f3efe6;--mut:#9fb0c2;--acc:#f0b84a;--err:#ff9a8a;--ok:#8fd3a8}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:18px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;align-items:center;justify-content:center;padding:20px}
+main{width:100%;max-width:520px;text-align:center}
+h1{font-size:1.05rem;font-weight:500;color:var(--mut);margin:0 0 6px}
+#target{font-size:1.8rem;font-weight:700;margin:0 0 6px;word-break:break-word}
+#sub{color:var(--mut);margin:0 0 28px;min-height:1.4em;word-break:break-word}
+button{width:100%;border:0;border-radius:20px;font:inherit;font-weight:700;cursor:pointer}
+button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+button:active{transform:scale(.98)}
+button:disabled{opacity:.6;cursor:default}
+#play{min-height:120px;font-size:1.7rem;background:var(--acc);color:#1d1605}
+#login{min-height:72px;font-size:1.2rem;background:var(--card);color:var(--ink)}
+#status{margin:22px 0 0;min-height:1.4em}
+#status.ok{color:var(--ok)}
+#status.err{color:var(--err)}
+#info{margin:22px 0 0;text-align:left;color:var(--mut);font-size:.9rem;word-break:break-all}
+#info b{color:var(--ink)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+  <h1>Spotify en</h1>
+  <p id="target">…</p>
+  <p id="sub"></p>
+  <button id="play" hidden>Reproducir</button>
+  <button id="login" hidden>Iniciar sesión en Spotify</button>
+  <p id="status" role="status"></p>
+  <div id="info" hidden></div>
+</main>
+
+<script>
+// 1) Pega aquí el Client ID de tu app en developer.spotify.com
+const CLIENT_ID = "PON_AQUI_TU_CLIENT_ID";
+
+// 2) Esta URL (sin parámetros) debe estar registrada tal cual como Redirect URI en el dashboard de Spotify
+const REDIRECT = location.origin + location.pathname;
+const SCOPE = "user-modify-playback-state user-read-playback-state";
+
+/* Parámetros de URL admitidos:
+   device    nombre (o ID) del dispositivo Spotify Connect
+   playlist  ID, URI (spotify:...) o enlace de open.spotify.com (playlist, álbum, artista, podcast)
+   autoplay  1 = lanza la reproducción al abrir la página
+   shuffle   1 o 0
+   volume    0-100
+   logout    1 = borra la sesión guardada en este navegador */
+
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const LS = localStorage;
+let P = new URLSearchParams(location.search);
+
+function status(t, cls) { const s = $("status"); s.textContent = t; s.className = cls || ""; }
+
+function b64url(buf) {
+  return btoa(String.fromCharCode.apply(null, new Uint8Array(buf)))
+    .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+/* ---------- Autenticación (Authorization Code + PKCE) ---------- */
+async function login() {
+  const verifier = b64url(crypto.getRandomValues(new Uint8Array(48)));
+  const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  LS.setItem("sp_verifier", verifier);
+  LS.setItem("sp_params", location.search);   // la redirección de Spotify pierde los parámetros
+  location.href = "https://accounts.spotify.com/authorize?" + new URLSearchParams({
+    client_id: CLIENT_ID, response_type: "code", redirect_uri: REDIRECT,
+    code_challenge_method: "S256", code_challenge: challenge, scope: SCOPE
+  });
+}
+
+async function tokenRequest(body) {
+  const r = await fetch("https://accounts.spotify.com/api/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(Object.assign({ client_id: CLIENT_ID }, body))
+  });
+  if (!r.ok) throw new Error("token " + r.status);
+  const t = await r.json();
+  LS.setItem("sp_access", t.access_token);
+  LS.setItem("sp_expires", String(Date.now() + (t.expires_in - 60) * 1000));
+  if (t.refresh_token) LS.setItem("sp_refresh", t.refresh_token);
+}
+
+async function handleRedirect() {
+  const code = P.get("code");
+  await tokenRequest({
+    grant_type: "authorization_code", code, redirect_uri: REDIRECT,
+    code_verifier: LS.getItem("sp_verifier") || ""
+  });
+  history.replaceState(null, "", location.pathname + (LS.getItem("sp_params") || ""));
+  P = new URLSearchParams(location.search);
+}
+
+async function getToken() {
+  if (LS.getItem("sp_access") && Date.now() < Number(LS.getItem("sp_expires"))) return LS.getItem("sp_access");
+  const rt = LS.getItem("sp_refresh");
+  if (!rt) return null;
+  try { await tokenRequest({ grant_type: "refresh_token", refresh_token: rt }); }
+  catch (e) { return null; }
+  return LS.getItem("sp_access");
+}
+
+/* ---------- API de Spotify ---------- */
+async function api(method, path, body) {
+  const t = await getToken();
+  if (!t) { needLogin("La sesión ha caducado. Inicia sesión de nuevo."); return null; }
+  return fetch("https://api.spotify.com/v1" + path, {
+    method,
+    headers: { Authorization: "Bearer " + t, "Content-Type": "application/json" },
+    body: body ? JSON.stringify(body) : undefined
+  });
+}
+
+function toUri(v) {
+  if (!v) return null;
+  v = v.trim();
+  if (v.indexOf("spotify:") === 0) return v;
+  const m = v.match(/open\.spotify\.com\/(?:intl-[a-z]+\/)?(playlist|album|artist|show)\/([A-Za-z0-9]+)/);
+  return m ? "spotify:" + m[1] + ":" + m[2] : "spotify:playlist:" + v;
+}
+
+function findDevice(list, want) {
+  if (!want) return list.find(d => d.is_active) || list[0];
+  const w = want.toLowerCase();
+  return list.find(d => d.id === want) ||
+         list.find(d => d.name.toLowerCase() === w) ||
+         list.find(d => d.name.toLowerCase().indexOf(w) !== -1);
+}
+
+function showDevices(list, withHint) {
+  const info = $("info");
+  info.hidden = false;
+  info.innerHTML = "<b>Dispositivos disponibles ahora</b><br>" +
+    (list.length ? list.map(d => "• " + esc(d.name) + " (" + esc(d.type) + ")").join("<br>") : "Ninguno. Abre la app de Spotify en el dispositivo.") +
+    (withHint ? "<br><br>Usa la dirección de esta página con <b>?device=NOMBRE&amp;playlist=ENLACE&amp;autoplay=1</b>" : "");
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+async function play() {
+  const btn = $("play");
+  btn.disabled = true;
+  status("Buscando dispositivo…");
+  try {
+    const r = await api("GET", "/me/player/devices");
+    if (!r) return;
+    if (!r.ok) { status("Spotify respondió con error " + r.status + ".", "err"); return; }
+    const list = (await r.json()).devices || [];
+    const want = P.get("device");
+    const dev = findDevice(list, want);
+    if (!dev) {
+      status(want ? "No encuentro «" + want + "». Abre la app de Spotify en ese dispositivo e inténtalo de nuevo."
+                  : "No hay dispositivos disponibles. Abre Spotify en alguno.", "err");
+      showDevices(list, false);
+      return;
+    }
+    const id = encodeURIComponent(dev.id);
+    if (!dev.is_active) { await api("PUT", "/me/player", { device_ids: [dev.id], play: false }); await sleep(700); }
+    const vol = P.get("volume");
+    if (vol !== null && vol !== "") await api("PUT", "/me/player/volume?volume_percent=" + Math.max(0, Math.min(100, parseInt(vol, 10) || 0)) + "&device_id=" + id);
+    const sh = P.get("shuffle");
+    if (sh !== null) await api("PUT", "/me/player/shuffle?state=" + (sh === "1" || sh === "true") + "&device_id=" + id);
+    const uri = toUri(P.get("playlist"));
+    const res = await api("PUT", "/me/player/play?device_id=" + id, uri ? { context_uri: uri } : undefined);
+    if (!res) return;
+    if (res.ok) status("Reproduciendo en " + dev.name, "ok");
+    else if (res.status === 403) status("Spotify rechaza la orden. Comprueba que la cuenta es Premium.", "err");
+    else status("No se pudo reproducir (error " + res.status + ").", "err");
+  } catch (e) {
+    status("Error de red. Comprueba la conexión.", "err");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function needLogin(msg) {
+  $("play").hidden = true;
+  $("login").hidden = false;
+  status(msg || "", msg ? "err" : "");
+}
+
+/* ---------- Arranque ---------- */
+async function init() {
+  if (P.get("logout") === "1") { ["sp_access", "sp_expires", "sp_refresh", "sp_verifier", "sp_params"].forEach(k => LS.removeItem(k)); history.replaceState(null, "", location.pathname); P = new URLSearchParams(""); }
+  $("login").onclick = login;
+  $("play").onclick = play;
+
+  if (CLIENT_ID.indexOf("PON_") === 0) { $("target").textContent = "Falta configurar"; status("Edita index.html y pon tu Client ID de Spotify.", "err"); return; }
+
+  if (P.get("error")) { status("Spotify canceló el acceso.", "err"); history.replaceState(null, "", location.pathname); P = new URLSearchParams(""); }
+  else if (P.get("code")) {
+    try { await handleRedirect(); } catch (e) { status("No se pudo completar el inicio de sesión.", "err"); }
+  }
+
+  const want = P.get("device");
+  $("target").textContent = want || "dispositivo activo";
+  $("sub").textContent = P.get("playlist") ? "Lista: " + P.get("playlist") : "";
+
+  if (!(await getToken())) { needLogin(); return; }
+
+  if (!want && !P.get("playlist")) {
+    $("target").textContent = "Spotify Panel";
+    const r = await api("GET", "/me/player/devices");
+    if (r && r.ok) showDevices((await r.json()).devices || [], true);
+    return;
+  }
+
+  $("play").hidden = false;
+  if (P.get("autoplay") === "1") play();
+}
+init();
+</script>
+</body>
+</html>
