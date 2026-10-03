@@ -29,12 +29,8 @@ button:disabled{opacity:.6;cursor:default}
 .row{display:flex;gap:8px;margin-bottom:6px}
 select{flex:1;min-width:0;font:inherit;padding:14px 10px;border-radius:14px;border:0;background:var(--card);color:var(--ink)}
 #refresh{width:auto;padding:0 18px;background:var(--card);color:var(--ink);font-size:1rem;border-radius:14px}
-#devid,#link{color:var(--mut);font-size:.8rem;word-break:break-all;margin:0 0 14px;min-height:1.2em}
-#now{min-height:1.4em;margin:0 0 12px;color:var(--ink);font-size:.95rem;word-break:break-word}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
-.grid button{min-height:64px;padding:6px;font-size:1rem;background:var(--card);color:var(--ink);border-radius:14px}
-.grid button.big{background:var(--acc);color:#1d1605}
-.grid button.on{background:var(--ok);color:#10281a}
+#devid,#link,#stoplink{color:var(--mut);font-size:.8rem;word-break:break-all;margin:0 0 14px;min-height:1.2em}
+#stop{min-height:64px;margin:0 0 16px;background:#6b2f2f;color:var(--ink);font-size:1.25rem}
 #lists{max-height:42vh;overflow:auto}
 .pl{display:flex;align-items:center;gap:14px;text-align:left;min-height:68px;padding:8px 12px;margin-bottom:8px;background:var(--card);color:var(--ink);font-size:1.05rem;font-weight:500;border-radius:14px}
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}
@@ -63,22 +59,13 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
     <label for="dev">Dispositivo</label>
     <div class="row"><select id="dev"></select><button id="refresh" type="button">Actualizar</button></div>
     <p id="devid"></p>
-    <div id="now"></div>
-    <div class="grid" id="ctl">
-      <button type="button" data-a="prev">◀◀ Anterior</button>
-      <button type="button" data-a="playpause" id="b_pp" class="big">▶ Reproducir</button>
-      <button type="button" data-a="next">Siguiente ▶▶</button>
-      <button type="button" data-a="back">Atrasar 15 s</button>
-      <button type="button" data-a="shuffle" id="b_sh">Aleatorio</button>
-      <button type="button" data-a="fwd">Adelantar 15 s</button>
-      <button type="button" data-a="vol_down">Volumen −</button>
-      <button type="button" data-a="repeat" id="b_rp">Repetir</button>
-      <button type="button" data-a="vol_up">Volumen +</button>
-    </div>
+    <button id="stop" type="button">Parar música</button>
     <label>Tus listas (toca una para reproducirla)</label>
     <div id="lists"></div>
-    <label>Enlace del último botón pulsado (para el panel)</label>
-    <p id="link">Se genera al pulsar un botón o elegir una lista.</p>
+    <label>Enlace para un botón del panel</label>
+    <p id="link">Se genera al elegir una lista.</p>
+    <label>Enlace para parar este dispositivo</label>
+    <p id="stoplink"></p>
   </section>
 </main>
 
@@ -96,8 +83,6 @@ const SCOPE = "user-modify-playback-state user-read-playback-state playlist-read
    autoplay  1 = lanza la reproducción al abrir la página
    shuffle   1 o 0
    volume    0-100
-   action    prev | next | playpause | pause | resume | back | fwd | shuffle | shuffle_on | shuffle_off |
-             repeat | repeat_off | repeat_context | repeat_track | vol_up | vol_down  (sin playlist)
    logout    1 = borra la sesión guardada en este navegador */
 
 const $ = id => document.getElementById(id);
@@ -236,25 +221,9 @@ function needLogin(msg) {
   status(msg || "", msg ? "err" : "");
 }
 
-const ACTIONS = {
-  prev: "Anterior", playpause: "Reproducir / Pausa", next: "Siguiente",
-  pause: "Pausa", stop: "Pausa", resume: "Reanudar",
-  back: "Atrasar 15 s", fwd: "Adelantar 15 s",
-  shuffle: "Aleatorio", shuffle_on: "Aleatorio: activar", shuffle_off: "Aleatorio: desactivar",
-  repeat: "Repetir", repeat_off: "Repetir: no", repeat_context: "Repetir lista", repeat_track: "Repetir canción",
-  vol_up: "Volumen +", vol_down: "Volumen −"
-};
-const SEEK_MS = 15000, VOL_STEP = 10;
-const NEEDS_STATE = ["playpause", "shuffle", "repeat", "back", "fwd", "vol_up", "vol_down"];
-
-async function getState() {
-  const r = await api("GET", "/me/player");
-  return r && r.status === 200 ? await r.json() : null;
-}
-
-async function control(action, o) {
+async function stop(o) {
   o = o || {};
-  status("Enviando…");
+  status("Parando…");
   try {
     const r = await api("GET", "/me/player/devices");
     if (!r) return;
@@ -262,85 +231,35 @@ async function control(action, o) {
     const want = o.device !== undefined ? o.device : P.get("device");
     const dev = findDevice(list, want);
     if (!dev) { status(want ? "No encuentro «" + want + "». Abre Spotify en ese dispositivo." : "No hay dispositivos disponibles.", "err"); return; }
-    const q = "device_id=" + encodeURIComponent(dev.id);
-    let st = null;
-    if (NEEDS_STATE.indexOf(action) !== -1) { st = await getState(); if (st && (!st.device || st.device.id !== dev.id)) st = null; }
-
-    let a = action === "stop" ? "pause" : action;
-    if (a === "playpause") a = st && st.is_playing ? "pause" : "resume";
-    if (a === "shuffle") a = st && st.shuffle_state ? "shuffle_off" : "shuffle_on";
-    if (a === "repeat") { const c = st ? st.repeat_state : "off"; a = c === "off" ? "repeat_context" : c === "context" ? "repeat_track" : "repeat_off"; }
-
-    let m = "PUT", path, body, ok;
-    switch (a) {
-      case "pause": path = "/me/player/pause?" + q; ok = "Pausado en " + dev.name; break;
-      case "resume":
-        if (dev.is_active) { path = "/me/player/play?" + q; }
-        else { path = "/me/player"; body = { device_ids: [dev.id], play: true }; }
-        ok = "Reproduciendo en " + dev.name; break;
-      case "next": m = "POST"; path = "/me/player/next?" + q; ok = "Siguiente canción"; break;
-      case "prev": m = "POST"; path = "/me/player/previous?" + q; ok = "Canción anterior"; break;
-      case "shuffle_on": case "shuffle_off":
-        path = "/me/player/shuffle?state=" + (a === "shuffle_on") + "&" + q;
-        ok = "Aleatorio " + (a === "shuffle_on" ? "activado" : "desactivado"); break;
-      case "repeat_off": case "repeat_context": case "repeat_track": {
-        const rs = a.slice(7);
-        path = "/me/player/repeat?state=" + rs + "&" + q;
-        ok = "Repetir: " + ({ off: "desactivado", context: "lista", track: "canción" })[rs]; break;
-      }
-      case "back": case "fwd": {
-        if (!st) { status("No hay reproducción activa en " + dev.name + ".", "err"); return; }
-        const pos = Math.max(0, (st.progress_ms || 0) + (a === "fwd" ? SEEK_MS : -SEEK_MS));
-        path = "/me/player/seek?position_ms=" + pos + "&" + q;
-        ok = (a === "fwd" ? "Adelantado" : "Atrasado") + " 15 s"; break;
-      }
-      case "vol_up": case "vol_down": {
-        if (!st || !st.device) { status("No hay reproducción activa en " + dev.name + ".", "err"); return; }
-        const v = Math.max(0, Math.min(100, (st.device.volume_percent || 0) + (a === "vol_up" ? VOL_STEP : -VOL_STEP)));
-        path = "/me/player/volume?volume_percent=" + v + "&" + q;
-        ok = "Volumen " + v + " %"; break;
-      }
-      default: status("Acción desconocida: " + action, "err"); return;
-    }
-    const res = await api(m, path, body);
+    const res = await api("PUT", "/me/player/pause?device_id=" + encodeURIComponent(dev.id));
     if (!res) return;
-    if (res.ok) status(ok, "ok");
-    else if (res.status === 403 && a === "pause") status("Ya estaba en pausa en " + dev.name, "ok");
-    else if (res.status === 403) status("Spotify no permite esa acción ahora (¿el dispositivo no la admite?).", "err");
-    else if (res.status === 404) status("No hay reproducción activa en " + dev.name + ".", "err");
-    else status("No se pudo completar (error " + res.status + ").", "err");
+    if (res.ok) status("Música parada en " + dev.name, "ok");
+    else if (res.status === 403) status("Ya estaba parado en " + dev.name, "ok");
+    else if (res.status === 404) status("No hay reproducción activa en " + dev.name, "err");
+    else status("No se pudo parar (error " + res.status + ").", "err");
   } catch (e) {
     status("Error de red. Comprueba la conexión.", "err");
   }
 }
 
-async function refreshState() {
-  const sel = $("dev");
-  const st = await getState();
-  const mine = !!(st && st.device && sel.value && st.device.id === sel.value);
-  const it = mine && st.item;
-  $("now").textContent = it ? (st.is_playing ? "▶ " : "❚❚ ") + it.name + (it.artists ? " — " + it.artists.map(x => x.name).join(", ") : "") : "Sin reproducción en este dispositivo";
-  $("b_pp").textContent = mine && st.is_playing ? "❚❚ Pausa" : "▶ Reproducir";
-  $("b_sh").classList.toggle("on", mine && !!st.shuffle_state);
-  const rp = mine ? st.repeat_state : "off";
-  $("b_rp").classList.toggle("on", rp !== "off");
-  $("b_rp").textContent = rp === "track" ? "Repetir canción" : rp === "context" ? "Repetir lista" : "Repetir";
-}
-
-async function ctl(a) {
-  const sel = $("dev");
-  if (!sel.value) { status("Elige primero un dispositivo.", "err"); return; }
-  const name = sel.options[sel.selectedIndex].dataset.name;
-  $("link").textContent = REDIRECT + "?device=" + encodeURIComponent(name) + "&action=" + a + "&autoplay=1";
-  await control(a, { device: sel.value });
-  setTimeout(refreshState, 700);
+async function loadUser() {
+  try {
+    const r = await api("GET", "/me");
+    if (!r || !r.ok) return;
+    const u = await r.json();
+    const name = u.display_name || u.id || "";
+    $("uname").textContent = name;
+    if (u.images && u.images.length) { $("uimg").src = u.images[0].url; $("uimg").hidden = false; }
+    else { $("uini").textContent = name.charAt(0).toUpperCase(); $("uini").hidden = false; }
+    $("user").hidden = false;
+  } catch (e) {}
 }
 
 /* ---------- Selector de dispositivo y listas ---------- */
 function showId() {
   const sel = $("dev");
   $("devid").textContent = sel.value ? "ID: " + sel.value : "";
-  refreshState();
+  $("stoplink").textContent = sel.value ? REDIRECT + "?device=" + encodeURIComponent(sel.options[sel.selectedIndex].dataset.name) + "&action=stop&autoplay=1" : "";
 }
 
 async function loadDevices() {
@@ -396,7 +315,7 @@ function choose(p) {
   if (!sel.value) { status("Elige primero un dispositivo.", "err"); return; }
   const name = sel.options[sel.selectedIndex].dataset.name;
   $("link").textContent = REDIRECT + "?device=" + encodeURIComponent(name) + "&playlist=" + p.id + "&autoplay=1";
-  play({ device: sel.value, uri: "spotify:playlist:" + p.id }).then(function () { setTimeout(refreshState, 800); });
+  play({ device: sel.value, uri: "spotify:playlist:" + p.id });
 }
 
 async function picker() {
@@ -408,7 +327,6 @@ async function picker() {
   $("picker").hidden = false;
   await loadDevices();
   loadPlaylists();
-  setInterval(refreshState, 6000);
 }
 
 /* ---------- Arranque ---------- */
@@ -418,7 +336,7 @@ async function init() {
   $("play").onclick = function () { play(); };
   $("refresh").onclick = loadDevices;
   $("dev").onchange = showId;
-  document.querySelectorAll("#ctl [data-a]").forEach(function (b) { b.onclick = function () { ctl(b.dataset.a); }; });
+  $("stop").onclick = function () { stop({ device: $("dev").value }); };
 
   if (CLIENT_ID.indexOf("PON_") === 0) { $("target").textContent = "Falta configurar"; status("Edita index.html y pon tu Client ID de Spotify.", "err"); return; }
 
@@ -434,14 +352,13 @@ async function init() {
   if (!(await getToken())) { needLogin(); return; }
   loadUser();
 
-  if ((!want && !P.get("playlist") && !P.get("action")) || P.get("list") === "1") { await picker(); return; }
+  if ((!want && !P.get("playlist")) || P.get("list") === "1") { await picker(); return; }
 
-  if (P.get("action")) {
-    const act = P.get("action");
-    $("play").textContent = ACTIONS[act] || act;
-    $("play").onclick = function () { control(act); };
+  if (P.get("action") === "stop") {
+    $("play").textContent = "Parar";
+    $("play").onclick = function () { stop(); };
     $("play").hidden = false;
-    if (P.get("autoplay") === "1") control(act);
+    if (P.get("autoplay") === "1") stop();
     return;
   }
 
