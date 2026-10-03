@@ -1,9 +1,14 @@
 <!DOCTYPE html>
 <html lang="es">
+<!--
+  Playlist Button — © 2026 juanitoteleco — Licencia MIT (ver LICENSE).
+  Proyecto independiente, no afiliado a Spotify AB. Spotify es una marca registrada de Spotify AB.
+  El logotipo (logo/Spotify_Full_Logo_RGB_Green.png) es propiedad exclusiva de Spotify AB y no está cubierto por la licencia MIT.
+-->
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Spotify Panel</title>
+<title>Playlist Button</title>
 <style>
 :root{--bg:#18212b;--card:#223041;--ink:#f3efe6;--mut:#9fb0c2;--acc:#f0b84a;--err:#ff9a8a;--ok:#8fd3a8}
 *{box-sizing:border-box}
@@ -43,13 +48,27 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 .av{background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700}
 .pl img,.ph{width:52px;height:52px;border-radius:8px;object-fit:cover;flex:none}
 .ph{background:#2d4157;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:1.4rem}
+#splogo{display:inline-block;background:#000;padding:8px 12px;border-radius:12px;line-height:0}
+#splogo img{display:block;width:120px;height:auto}
+footer{margin-top:30px;color:var(--mut);font-size:.72rem;line-height:1.5;text-align:center}
+.plrow{display:flex;gap:8px;margin-bottom:8px}
+.plrow .pl{flex:1;min-width:0;margin-bottom:0}
+.sl,.lnk{color:var(--mut);text-decoration:none}
+.sl{display:flex;align-items:center;justify-content:center;padding:0 14px;border-radius:14px;background:var(--card);font-size:.8rem;text-align:center}
+.lnk{text-decoration:underline}
+#cfg{margin-top:20px;text-align:left}
+#cfg p{color:var(--mut);font-size:.9rem;margin:0 0 10px;word-break:break-word}
+#cfg p b{color:var(--ink)}
+#cid{width:100%;padding:14px;border:0;border-radius:14px;background:var(--card);color:var(--ink);font:inherit;font-size:1rem}
+.btn2{min-height:56px;margin-top:8px;font-size:1.05rem;background:var(--acc);color:#1d1605}
+.btn3{min-height:48px;margin-top:8px;font-size:.95rem;background:var(--card);color:var(--ink)}
 [hidden]{display:none!important}
 </style>
 </head>
 <body>
 <main>
   <header>
-    <svg viewBox="0 0 24 24" width="34" height="34" role="img" aria-label="Spotify"><circle cx="12" cy="12" r="12" fill="#1ED760"/><path d="M5.5 9.2c4.2-1.2 9.2-.9 13 1.3M6.2 12.7c3.5-1 7.6-.7 10.7 1.1M7 16c2.8-.8 5.9-.5 8.4.9" fill="none" stroke="#121212" stroke-width="1.6" stroke-linecap="round"/></svg>
+    <a id="splogo" href="https://open.spotify.com" target="_blank" rel="noopener" aria-label="Abrir Spotify"><img src="logo/Spotify_Full_Logo_RGB_Green.png" alt="Spotify" width="120" height="33"></a>
     <div id="user" hidden><span id="uname"></span><img id="uimg" alt="" hidden><span id="uini" class="av" hidden></span></div>
   </header>
   <h1>Spotify en</h1>
@@ -58,6 +77,12 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
   <button id="play" hidden>Reproducir</button>
   <button id="login" hidden>Iniciar sesión en Spotify</button>
   <p id="status" role="status"></p>
+  <section id="cfg" hidden>
+    <p>Usa tu propia app de Spotify: créala en <b>developer.spotify.com/dashboard</b> (Web API), registra como Redirect URI <b id="ruri"></b> y pega aquí su Client ID.</p>
+    <input id="cid" type="text" placeholder="Client ID (32 caracteres)" autocomplete="off" autocapitalize="off" spellcheck="false">
+    <button id="cidsave" type="button" class="btn2">Guardar y continuar</button>
+    <button id="cidreset" type="button" class="btn3" hidden>Volver al Client ID por defecto</button>
+  </section>
   <div id="info" hidden></div>
   <section id="picker" hidden>
     <label for="dev">Dispositivo</label>
@@ -80,11 +105,19 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
     <label>Enlace del último botón pulsado (para el panel)</label>
     <p id="link">Se genera al pulsar un botón o elegir una lista.</p>
   </section>
+  <footer>
+    Proyecto personal e independiente. No está afiliado, patrocinado ni respaldado por Spotify AB.
+    Spotify es una marca registrada de Spotify AB. Los nombres, carátulas y listas pertenecen a sus titulares
+    y se muestran mediante la API oficial de Spotify. El logotipo de Spotify es propiedad exclusiva de Spotify AB y no está cubierto por la licencia MIT.<br>
+    Código de esta integración © 2026 juanitoteleco · Licencia MIT.<br>
+    <span id="cidinfo"></span> · <a href="#" id="opencfg" class="lnk">Cambiar Client ID</a>
+  </footer>
 </main>
 
 <script>
 // 1) Client ID de tu app en developer.spotify.com
-const CLIENT_ID = "4b55e389893e4a82805bbdf861574f15";
+const DEFAULT_CLIENT_ID = "4b55e389893e4a82805bbdf861574f15";
+let CLIENT_ID = DEFAULT_CLIENT_ID;   // se sustituye por el Client ID propio si la persona configura uno
 
 // 2) Esta URL (sin parámetros) debe estar registrada tal cual como Redirect URI en el dashboard de Spotify
 const REDIRECT = location.origin + location.pathname;
@@ -98,12 +131,34 @@ const SCOPE = "user-modify-playback-state user-read-playback-state playlist-read
    volume    0-100
    action    prev | next | playpause | pause | resume | back | fwd | shuffle | shuffle_on | shuffle_off |
              repeat | repeat_off | repeat_context | repeat_track | vol_up | vol_down  (sin playlist)
-   logout    1 = borra la sesión guardada en este navegador */
+   client_id usa tu propia app de Spotify (se guarda en este navegador y pide iniciar sesión de nuevo)
+   logout    1 = borra la sesión y el Client ID propio guardados en este navegador */
 
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const LS = localStorage;
 let P = new URLSearchParams(location.search);
+
+/* ---------- Client ID propio (opcional) ---------- */
+const HEX32 = /^[a-f0-9]{32}$/i;
+let CUSTOM = false;
+function clearAuth() { ["sp_access", "sp_expires", "sp_refresh", "sp_scope", "sp_verifier", "sp_params"].forEach(k => LS.removeItem(k)); }
+function cleanSearch() {
+  const q = new URLSearchParams(location.search);
+  ["code", "error", "state", "client_id"].forEach(k => q.delete(k));
+  const t = q.toString();
+  return t ? "?" + t : "";
+}
+(function resolveClient() {
+  const fromUrl = (P.get("client_id") || "").trim();
+  if (HEX32.test(fromUrl)) {
+    if (LS.getItem("sp_client") !== fromUrl) { LS.setItem("sp_client", fromUrl); clearAuth(); }
+    history.replaceState(null, "", location.pathname + cleanSearch());
+    P = new URLSearchParams(location.search);
+  }
+  const saved = LS.getItem("sp_client");
+  if (saved && HEX32.test(saved)) { CLIENT_ID = saved; CUSTOM = true; }
+})();
 
 function status(t, cls) { const s = $("status"); s.textContent = t; s.className = cls || ""; }
 
@@ -320,6 +375,11 @@ async function refreshState() {
   const mine = !!(st && st.device && sel.value && st.device.id === sel.value);
   const it = mine && st.item;
   $("now").textContent = it ? (st.is_playing ? "▶ " : "❚❚ ") + it.name + (it.artists ? " — " + it.artists.map(x => x.name).join(", ") : "") : "Sin reproducción en este dispositivo";
+  if (it && it.external_urls && it.external_urls.spotify) {
+    const l = document.createElement("a"); l.className = "lnk"; l.target = "_blank"; l.rel = "noopener";
+    l.href = it.external_urls.spotify; l.textContent = " · Abrir en Spotify";
+    $("now").appendChild(l);
+  }
   $("b_pp").textContent = mine && st.is_playing ? "❚❚ Pausa" : "▶ Reproducir";
   $("b_sh").classList.toggle("on", mine && !!st.shuffle_state);
   const rp = mine ? st.repeat_state : "off";
@@ -339,7 +399,9 @@ async function ctl(a) {
 async function loadUser() {
   try {
     const r = await api("GET", "/me");
-    if (!r || !r.ok) return;
+    if (!r) return;
+    if (r.status === 403) { status("Esta cuenta no está autorizada en la app de Spotify que usa la página. Pide que te añadan, o usa tu propio Client ID (enlace al pie).", "err"); return; }
+    if (!r.ok) return;
     const u = await r.json();
     const name = u.display_name || u.id || "";
     $("uname").textContent = name;
@@ -400,7 +462,11 @@ async function loadPlaylists() {
     const nm = document.createElement("span"); nm.textContent = p.name;
     b.appendChild(th); b.appendChild(nm);
     b.onclick = () => choose(p);
-    box.appendChild(b);
+    const row = document.createElement("div"); row.className = "plrow";
+    const a = document.createElement("a"); a.className = "sl"; a.target = "_blank"; a.rel = "noopener";
+    a.href = (p.external_urls && p.external_urls.spotify) || "https://open.spotify.com/playlist/" + p.id;
+    a.textContent = "Abrir en Spotify";
+    row.appendChild(b); row.appendChild(a); box.appendChild(row);
   });
 }
 
@@ -413,7 +479,7 @@ function choose(p) {
 }
 
 async function picker() {
-  $("target").textContent = "Spotify Panel";
+  $("target").textContent = "Playlist Button";
   if ((LS.getItem("sp_scope") || "").indexOf("playlist-read-private") === -1) {
     needLogin("Para ver tus listas hay que volver a iniciar sesión y aceptar el nuevo permiso.");
     return;
@@ -424,16 +490,39 @@ async function picker() {
   setInterval(refreshState, 6000);
 }
 
+function openCfg(msg) {
+  $("cfg").hidden = false;
+  $("cidreset").hidden = !CUSTOM;
+  if (msg) status(msg, "err");
+}
+function saveCid() {
+  const id = $("cid").value.trim();
+  if (!HEX32.test(id)) { status("Un Client ID tiene 32 caracteres (cifras y letras de la a a la f).", "err"); return; }
+  LS.setItem("sp_client", id);
+  clearAuth();
+  location.href = location.pathname + cleanSearch();
+}
+function resetCid() {
+  LS.removeItem("sp_client");
+  clearAuth();
+  location.href = location.pathname + cleanSearch();
+}
+
 /* ---------- Arranque ---------- */
 async function init() {
-  if (P.get("logout") === "1") { ["sp_access", "sp_expires", "sp_refresh", "sp_verifier", "sp_params"].forEach(k => LS.removeItem(k)); history.replaceState(null, "", location.pathname); P = new URLSearchParams(""); }
+  if (P.get("logout") === "1") { clearAuth(); LS.removeItem("sp_client"); CLIENT_ID = DEFAULT_CLIENT_ID; CUSTOM = false; history.replaceState(null, "", location.pathname); P = new URLSearchParams(""); }
+  $("ruri").textContent = REDIRECT;
+  $("cidinfo").textContent = CUSTOM ? "Client ID propio" : "Client ID por defecto";
+  $("opencfg").onclick = function (e) { e.preventDefault(); openCfg(); };
+  $("cidsave").onclick = saveCid;
+  $("cidreset").onclick = resetCid;
   $("login").onclick = login;
   $("play").onclick = function () { play(); };
   $("refresh").onclick = loadDevices;
   $("dev").onchange = showId;
   document.querySelectorAll("#ctl [data-a]").forEach(function (b) { b.onclick = function () { ctl(b.dataset.a); }; });
 
-  if (CLIENT_ID.indexOf("PON_") === 0) { $("target").textContent = "Falta configurar"; status("Edita index.html y pon tu Client ID de Spotify.", "err"); return; }
+  if (!CLIENT_ID) { $("target").textContent = "Falta configurar"; openCfg("Pega el Client ID de tu app de Spotify para empezar."); return; }
 
   if (P.get("error")) { status("Spotify canceló el acceso.", "err"); history.replaceState(null, "", location.pathname); P = new URLSearchParams(""); }
   else if (P.get("code")) {
