@@ -57,6 +57,8 @@ header{display:flex;align-items:center;justify-content:space-between;margin-bott
 #splogo{display:inline-block;line-height:0}
 #splogo img{display:block;width:120px;height:auto}
 #user{display:flex;align-items:center;gap:10px;color:var(--ink);font-weight:700;font-size:.95rem}
+#acct{display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:0}
+#logout{width:auto;padding:6px 16px;font-size:.8rem;letter-spacing:.02em;background:transparent;color:var(--ink);border:1px solid var(--line)}
 #uimg,.av{width:36px;height:36px;border-radius:50%;object-fit:cover}
 .av{background:var(--ph);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700}
 footer{margin-top:30px;color:var(--mut);font-size:.72rem;line-height:1.5;text-align:center}
@@ -72,7 +74,10 @@ footer{margin-top:30px;color:var(--mut);font-size:.72rem;line-height:1.5;text-al
 <main>
   <header>
     <a id="splogo" href="https://open.spotify.com" target="_blank" rel="noopener" aria-label="Abrir Spotify"><img src="logo/Spotify_Full_Logo_RGB_Green.png" alt="Spotify" width="120" height="33"></a>
-    <div id="user" hidden><span id="uname"></span><img id="uimg" alt="" hidden><span id="uini" class="av" hidden></span></div>
+    <div id="acct">
+      <div id="user" hidden><span id="uname"></span><img id="uimg" alt="" hidden><span id="uini" class="av" hidden></span></div>
+      <button id="logout" type="button" hidden>Cerrar sesión</button>
+    </div>
   </header>
   <h1>Spotify en</h1>
   <p id="target">…</p>
@@ -138,7 +143,8 @@ const SCOPE = "user-modify-playback-state user-read-playback-state playlist-read
    action    prev | next | playpause | pause | resume | back | fwd | shuffle | shuffle_on | shuffle_off |
              repeat | repeat_off | repeat_context | repeat_track | vol_up | vol_down  (sin playlist)
    client_id OBLIGATORIO la primera vez: Client ID de tu propia app de Spotify (se recuerda en este navegador)
-   logout    1 = borra la sesión y el Client ID guardados en este navegador */
+   logout    1 = borra la sesión y el Client ID guardados en este navegador
+   (botón «Cerrar sesión»: visible en el selector; borra solo la sesión y conserva el Client ID) */
 
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -180,10 +186,18 @@ async function login() {
   const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
   LS.setItem("sp_verifier", verifier);
   LS.setItem("sp_params", location.search);   // la redirección de Spotify pierde los parámetros
-  location.href = "https://accounts.spotify.com/authorize?" + new URLSearchParams({
+  const prm = {
     client_id: CLIENT_ID, response_type: "code", redirect_uri: REDIRECT,
     code_challenge_method: "S256", code_challenge: challenge, scope: SCOPE
-  });
+  };
+  if (LS.getItem("sp_fresh")) { prm.show_dialog = "true"; LS.removeItem("sp_fresh"); }   // tras cerrar sesión, pide confirmar la cuenta
+  location.href = "https://accounts.spotify.com/authorize?" + new URLSearchParams(prm);
+}
+
+function logoutUser() {
+  clearAuth();                       // borra los tokens; se conserva el Client ID
+  LS.setItem("sp_fresh", "1");
+  location.href = location.pathname + cleanSearch();
 }
 
 async function tokenRequest(body) {
@@ -407,7 +421,7 @@ async function loadUser() {
   try {
     const r = await api("GET", "/me");
     if (!r) return;
-    if (r.status === 403) { status("Esta cuenta no está autorizada en la app de Spotify que usa la página. Pide que te añadan en User Management de esa app, o abre la página con el Client ID de tu propia app (?client_id=...).", "err"); return; }
+    if (r.status === 403) { status("Esta cuenta no está autorizada en la app de Spotify que usa la página. Pide que te añadan en User Management de esa app, o abre la página con el Client ID de tu propia app (?client_id=...).", "err"); $("logout").hidden = false; return; }
     if (!r.ok) return;
     const u = await r.json();
     const name = u.display_name || u.id || "";
@@ -487,6 +501,7 @@ function choose(p) {
 
 async function picker() {
   $("target").textContent = "Playlist Button";
+  $("logout").hidden = false;
   if ((LS.getItem("sp_scope") || "").indexOf("playlist-read-private") === -1) {
     needLogin("Para ver tus listas hay que volver a iniciar sesión y aceptar el nuevo permiso.");
     return;
@@ -511,6 +526,7 @@ async function init() {
   $("exurl").textContent = REDIRECT + "?client_id=TU_CLIENT_ID";
   $("cidinfo").textContent = CLIENT_ID ? "Client ID en uso: " + CLIENT_ID.slice(0, 6) + "…" : "";
   $("login").onclick = login;
+  $("logout").onclick = logoutUser;
   $("play").onclick = function () { play(); };
   $("refresh").onclick = loadDevices;
   $("dev").onchange = showId;
