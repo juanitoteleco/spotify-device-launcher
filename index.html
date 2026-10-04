@@ -8,60 +8,63 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#000000">
 <title>Playlist Button</title>
 <style>
-:root{--bg:#18212b;--card:#223041;--ink:#f3efe6;--mut:#9fb0c2;--acc:#f0b84a;--err:#ff9a8a;--ok:#8fd3a8}
+:root{color-scheme:dark;--bg:#000000;--card:#1f1f1f;--press:#2a2a2a;--ph:#282828;--ink:#ffffff;--mut:#b3b3b3;--line:#727272;--green:#1ed760}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0}
-body{background:var(--bg);color:var(--ink);font:18px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;display:flex;padding:20px}
+body{background:var(--bg);color:var(--ink);font:18px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;-webkit-font-smoothing:antialiased;display:flex;padding:20px}
 main{width:100%;max-width:520px;text-align:center;margin:auto}
-h1{font-size:1.05rem;font-weight:500;color:var(--mut);margin:0 0 6px}
-#target{font-size:1.8rem;font-weight:700;margin:0 0 6px;word-break:break-word}
+h1{font-size:1rem;font-weight:700;color:var(--mut);margin:0 0 6px}
+#target{font-size:2rem;font-weight:800;letter-spacing:-.01em;margin:0 0 6px;word-break:break-word}
 #sub{color:var(--mut);margin:0 0 28px;min-height:1.4em;word-break:break-word}
-button{width:100%;border:0;border-radius:20px;font:inherit;font-weight:700;cursor:pointer}
-button:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
-button:active{transform:scale(.98)}
+button{width:100%;border:0;border-radius:9999px;font:inherit;font-weight:700;letter-spacing:.02em;cursor:pointer;transition:transform .1s}
+button:focus-visible,a:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+button:active{transform:scale(.97)}
 button:disabled{opacity:.6;cursor:default}
-#play{min-height:120px;font-size:1.7rem;background:var(--acc);color:#1d1605}
-#login{min-height:72px;font-size:1.2rem;background:var(--card);color:var(--ink)}
-#status{margin:22px 0 0;min-height:1.4em}
-#status.ok{color:var(--ok)}
-#status.err{color:var(--err)}
+#play,.grid button.big{background:var(--green);color:#000}
+#play{min-height:110px;font-size:1.7rem}
+#login{min-height:64px;font-size:1.15rem;background:var(--ink);color:#000}
+#status{margin:22px 0 0;min-height:1.4em;color:var(--mut)}
+#status.ok{color:var(--green);font-weight:700}
+#status.err{color:var(--ink);font-weight:700}
+#status.err::before{content:"\26A0\FE0E  "}
 #info{margin:22px 0 0;text-align:left;color:var(--mut);font-size:.9rem;word-break:break-all}
 #info b{color:var(--ink)}
 #picker{text-align:left;margin-top:18px}
-#picker label{display:block;color:var(--mut);font-size:.9rem;margin:0 0 6px}
+#picker label{display:block;color:var(--ink);font-weight:700;font-size:1rem;margin:0 0 8px}
 .row{display:flex;gap:8px;margin-bottom:6px}
-select{flex:1;min-width:0;font:inherit;padding:14px 10px;border-radius:14px;border:0;background:var(--card);color:var(--ink)}
-#refresh{width:auto;padding:0 18px;background:var(--card);color:var(--ink);font-size:1rem;border-radius:14px}
-#devid,#link{color:var(--mut);font-size:.8rem;word-break:break-all;margin:0 0 14px;min-height:1.2em}
-#now{min-height:1.4em;margin:0 0 12px;color:var(--ink);font-size:.95rem;word-break:break-word}
-.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
-.grid button{min-height:64px;padding:6px;font-size:1rem;background:var(--card);color:var(--ink);border-radius:14px}
-.grid button.big{background:var(--acc);color:#1d1605}
-.grid button.on{background:var(--ok);color:#10281a}
-#lists{max-height:42vh;overflow:auto}
-.pl{display:flex;align-items:center;gap:14px;text-align:left;min-height:68px;padding:8px 12px;margin-bottom:8px;background:var(--card);color:var(--ink);font-size:1.05rem;font-weight:500;border-radius:14px}
+select{flex:1;min-width:0;font:inherit;padding:14px 18px;border-radius:9999px;border:1px solid var(--line);background:var(--card);color:var(--ink)}
+#refresh{width:auto;padding:0 22px;background:transparent;color:var(--ink);border:1px solid var(--line);font-size:1rem}
+#devid,#link{color:var(--mut);font-size:.8rem;word-break:break-all;margin:0 0 16px;min-height:1.2em}
+#now{min-height:1.4em;margin:0 0 14px;color:var(--ink);font-weight:700;font-size:.95rem;word-break:break-word}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.grid button{min-height:64px;padding:6px;font-size:1rem;background:var(--card);color:var(--ink)}
+.grid button:active{background:var(--press)}
+.grid button.on{background:var(--green);color:#000}
+#lists{max-height:42vh;overflow:auto;margin-bottom:16px}
+.plrow{display:flex;gap:8px;margin-bottom:6px;align-items:stretch}
+.pl{display:flex;align-items:center;gap:14px;text-align:left;min-height:68px;padding:8px 12px;background:transparent;color:var(--ink);font-size:1.05rem;font-weight:700;border-radius:8px;letter-spacing:0}
+.pl:active{background:var(--press)}
+.plrow .pl{flex:1;min-width:0}
+.pl img,.ph{width:52px;height:52px;border-radius:4px;object-fit:cover;flex:none}
+.ph{background:var(--ph);display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:1.4rem}
+.sl,.lnk{color:var(--ink);text-decoration:none}
+.sl{display:flex;align-items:center;justify-content:center;padding:0 14px;border:1px solid var(--line);border-radius:9999px;font-size:.8rem;font-weight:700;text-align:center}
+.lnk{text-decoration:underline;font-weight:400;color:var(--mut)}
 header{display:flex;align-items:center;justify-content:space-between;margin-bottom:26px}
-#user{display:flex;align-items:center;gap:10px;color:var(--mut);font-size:.95rem}
-#uimg,.av{width:36px;height:36px;border-radius:50%;object-fit:cover}
-.av{background:var(--card);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700}
-.pl img,.ph{width:52px;height:52px;border-radius:8px;object-fit:cover;flex:none}
-.ph{background:#2d4157;display:flex;align-items:center;justify-content:center;color:var(--mut);font-size:1.4rem}
-#splogo{display:inline-block;background:#000;padding:8px 12px;border-radius:12px;line-height:0}
+#splogo{display:inline-block;line-height:0}
 #splogo img{display:block;width:120px;height:auto}
+#user{display:flex;align-items:center;gap:10px;color:var(--ink);font-weight:700;font-size:.95rem}
+#uimg,.av{width:36px;height:36px;border-radius:50%;object-fit:cover}
+.av{background:var(--ph);color:var(--ink);display:flex;align-items:center;justify-content:center;font-weight:700}
 footer{margin-top:30px;color:var(--mut);font-size:.72rem;line-height:1.5;text-align:center}
-.plrow{display:flex;gap:8px;margin-bottom:8px}
-.plrow .pl{flex:1;min-width:0;margin-bottom:0}
-.sl,.lnk{color:var(--mut);text-decoration:none}
-.sl{display:flex;align-items:center;justify-content:center;padding:0 14px;border-radius:14px;background:var(--card);font-size:.8rem;text-align:center}
-.lnk{text-decoration:underline}
-#cfg{margin-top:20px;text-align:left}
-#cfg p{color:var(--mut);font-size:.9rem;margin:0 0 10px;word-break:break-word}
-#cfg p b{color:var(--ink)}
-#cid{width:100%;padding:14px;border:0;border-radius:14px;background:var(--card);color:var(--ink);font:inherit;font-size:1rem}
-.btn2{min-height:56px;margin-top:8px;font-size:1.05rem;background:var(--acc);color:#1d1605}
-.btn3{min-height:48px;margin-top:8px;font-size:.95rem;background:var(--card);color:var(--ink)}
+#setup{margin-top:18px;text-align:left;color:var(--mut);font-size:.95rem}
+#setup p{margin:0 0 12px}
+#setup ol{margin:0 0 12px;padding-left:22px}
+#setup li{margin-bottom:12px}
+#setup b{color:var(--ink);word-break:break-all}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -77,11 +80,15 @@ footer{margin-top:30px;color:var(--mut);font-size:.72rem;line-height:1.5;text-al
   <button id="play" hidden>Reproducir</button>
   <button id="login" hidden>Iniciar sesión en Spotify</button>
   <p id="status" role="status"></p>
-  <section id="cfg" hidden>
-    <p>Usa tu propia app de Spotify: créala en <b>developer.spotify.com/dashboard</b> (Web API), registra como Redirect URI <b id="ruri"></b> y pega aquí su Client ID.</p>
-    <input id="cid" type="text" placeholder="Client ID (32 caracteres)" autocomplete="off" autocapitalize="off" spellcheck="false">
-    <button id="cidsave" type="button" class="btn2">Guardar y continuar</button>
-    <button id="cidreset" type="button" class="btn3" hidden>Volver al Client ID por defecto</button>
+  <section id="setup" hidden>
+    <p>Esta página necesita el Client ID de <b>tu propia app de Spotify</b>, que se indica en la dirección. Así cada persona usa su app y sus propios usuarios autorizados.</p>
+    <ol>
+      <li>Entra en <b>developer.spotify.com/dashboard</b> con tu cuenta <b>Premium</b> y pulsa <b>Create app</b>.</li>
+      <li>Rellena el nombre y la descripción. En <b>Redirect URIs</b> añade exactamente <b id="ruri"></b> (con la barra final) y pulsa <b>Add</b>. En las APIs marca <b>Web API</b>, acepta los términos y guarda.</li>
+      <li>Abre los <b>Settings</b> de tu app y copia el <b>Client ID</b>. Si tu app está en modo desarrollo, añade en <b>User Management</b> el nombre y el email de tu cuenta de Spotify.</li>
+      <li>Abre esta dirección, con tu Client ID al final:<br><b id="exurl"></b></li>
+    </ol>
+    <p>El Client ID se recuerda en este navegador. Para los botones del panel usa los enlaces que genera la página, que ya lo incluyen.</p>
   </section>
   <div id="info" hidden></div>
   <section id="picker" hidden>
@@ -110,14 +117,13 @@ footer{margin-top:30px;color:var(--mut);font-size:.72rem;line-height:1.5;text-al
     Spotify es una marca registrada de Spotify AB. Los nombres, carátulas y listas pertenecen a sus titulares
     y se muestran mediante la API oficial de Spotify. El logotipo de Spotify es propiedad exclusiva de Spotify AB y no está cubierto por la licencia MIT.<br>
     Código de esta integración © 2026 juanitoteleco · Licencia MIT.<br>
-    <span id="cidinfo"></span> · <a href="#" id="opencfg" class="lnk">Cambiar Client ID</a>
+    <span id="cidinfo"></span>
   </footer>
 </main>
 
 <script>
-// 1) Client ID de tu app en developer.spotify.com
-const DEFAULT_CLIENT_ID = "4b55e389893e4a82805bbdf861574f15";
-let CLIENT_ID = DEFAULT_CLIENT_ID;   // se sustituye por el Client ID propio si la persona configura uno
+// No hay Client ID por defecto: cada persona lo indica en la URL (?client_id=...) y se recuerda en el navegador.
+let CLIENT_ID = "";
 
 // 2) Esta URL (sin parámetros) debe estar registrada tal cual como Redirect URI en el dashboard de Spotify
 const REDIRECT = location.origin + location.pathname;
@@ -131,17 +137,17 @@ const SCOPE = "user-modify-playback-state user-read-playback-state playlist-read
    volume    0-100
    action    prev | next | playpause | pause | resume | back | fwd | shuffle | shuffle_on | shuffle_off |
              repeat | repeat_off | repeat_context | repeat_track | vol_up | vol_down  (sin playlist)
-   client_id usa tu propia app de Spotify (se guarda en este navegador y pide iniciar sesión de nuevo)
-   logout    1 = borra la sesión y el Client ID propio guardados en este navegador */
+   client_id OBLIGATORIO la primera vez: Client ID de tu propia app de Spotify (se recuerda en este navegador)
+   logout    1 = borra la sesión y el Client ID guardados en este navegador */
 
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const LS = localStorage;
 let P = new URLSearchParams(location.search);
 
-/* ---------- Client ID propio (opcional) ---------- */
+/* ---------- Client ID (obligatorio, indicado por el usuario) ---------- */
 const HEX32 = /^[a-f0-9]{32}$/i;
-let CUSTOM = false;
+let BADCID = false;
 function clearAuth() { ["sp_access", "sp_expires", "sp_refresh", "sp_scope", "sp_verifier", "sp_params"].forEach(k => LS.removeItem(k)); }
 function cleanSearch() {
   const q = new URLSearchParams(location.search);
@@ -151,13 +157,14 @@ function cleanSearch() {
 }
 (function resolveClient() {
   const fromUrl = (P.get("client_id") || "").trim();
+  if (fromUrl && !HEX32.test(fromUrl)) { BADCID = true; history.replaceState(null, "", location.pathname + cleanSearch()); P = new URLSearchParams(location.search); }
   if (HEX32.test(fromUrl)) {
     if (LS.getItem("sp_client") !== fromUrl) { LS.setItem("sp_client", fromUrl); clearAuth(); }
     history.replaceState(null, "", location.pathname + cleanSearch());
     P = new URLSearchParams(location.search);
   }
   const saved = LS.getItem("sp_client");
-  if (saved && HEX32.test(saved)) { CLIENT_ID = saved; CUSTOM = true; }
+  if (saved && HEX32.test(saved)) CLIENT_ID = saved;
 })();
 
 function status(t, cls) { const s = $("status"); s.textContent = t; s.className = cls || ""; }
@@ -391,7 +398,7 @@ async function ctl(a) {
   const sel = $("dev");
   if (!sel.value) { status("Elige primero un dispositivo.", "err"); return; }
   const name = sel.options[sel.selectedIndex].dataset.name;
-  $("link").textContent = REDIRECT + "?device=" + encodeURIComponent(name) + "&action=" + a + "&autoplay=1";
+  $("link").textContent = REDIRECT + "?client_id=" + CLIENT_ID + "&device=" + encodeURIComponent(name) + "&action=" + a + "&autoplay=1";
   await control(a, { device: sel.value });
   setTimeout(refreshState, 700);
 }
@@ -400,7 +407,7 @@ async function loadUser() {
   try {
     const r = await api("GET", "/me");
     if (!r) return;
-    if (r.status === 403) { status("Esta cuenta no está autorizada en la app de Spotify que usa la página. Pide que te añadan, o usa tu propio Client ID (enlace al pie).", "err"); return; }
+    if (r.status === 403) { status("Esta cuenta no está autorizada en la app de Spotify que usa la página. Pide que te añadan en User Management de esa app, o abre la página con el Client ID de tu propia app (?client_id=...).", "err"); return; }
     if (!r.ok) return;
     const u = await r.json();
     const name = u.display_name || u.id || "";
@@ -474,7 +481,7 @@ function choose(p) {
   const sel = $("dev");
   if (!sel.value) { status("Elige primero un dispositivo.", "err"); return; }
   const name = sel.options[sel.selectedIndex].dataset.name;
-  $("link").textContent = REDIRECT + "?device=" + encodeURIComponent(name) + "&playlist=" + p.id + "&autoplay=1";
+  $("link").textContent = REDIRECT + "?client_id=" + CLIENT_ID + "&device=" + encodeURIComponent(name) + "&playlist=" + p.id + "&autoplay=1";
   play({ device: sel.value, uri: "spotify:playlist:" + p.id }).then(function () { setTimeout(refreshState, 800); });
 }
 
@@ -490,39 +497,26 @@ async function picker() {
   setInterval(refreshState, 6000);
 }
 
-function openCfg(msg) {
-  $("cfg").hidden = false;
-  $("cidreset").hidden = !CUSTOM;
+function showSetup(msg) {
+  $("target").textContent = "Falta el Client ID";
+  $("sub").textContent = "";
+  $("setup").hidden = false;
   if (msg) status(msg, "err");
-}
-function saveCid() {
-  const id = $("cid").value.trim();
-  if (!HEX32.test(id)) { status("Un Client ID tiene 32 caracteres (cifras y letras de la a a la f).", "err"); return; }
-  LS.setItem("sp_client", id);
-  clearAuth();
-  location.href = location.pathname + cleanSearch();
-}
-function resetCid() {
-  LS.removeItem("sp_client");
-  clearAuth();
-  location.href = location.pathname + cleanSearch();
 }
 
 /* ---------- Arranque ---------- */
 async function init() {
-  if (P.get("logout") === "1") { clearAuth(); LS.removeItem("sp_client"); CLIENT_ID = DEFAULT_CLIENT_ID; CUSTOM = false; history.replaceState(null, "", location.pathname); P = new URLSearchParams(""); }
+  if (P.get("logout") === "1") { clearAuth(); LS.removeItem("sp_client"); CLIENT_ID = ""; history.replaceState(null, "", location.pathname); P = new URLSearchParams(""); }
   $("ruri").textContent = REDIRECT;
-  $("cidinfo").textContent = CUSTOM ? "Client ID propio" : "Client ID por defecto";
-  $("opencfg").onclick = function (e) { e.preventDefault(); openCfg(); };
-  $("cidsave").onclick = saveCid;
-  $("cidreset").onclick = resetCid;
+  $("exurl").textContent = REDIRECT + "?client_id=TU_CLIENT_ID";
+  $("cidinfo").textContent = CLIENT_ID ? "Client ID en uso: " + CLIENT_ID.slice(0, 6) + "…" : "";
   $("login").onclick = login;
   $("play").onclick = function () { play(); };
   $("refresh").onclick = loadDevices;
   $("dev").onchange = showId;
   document.querySelectorAll("#ctl [data-a]").forEach(function (b) { b.onclick = function () { ctl(b.dataset.a); }; });
 
-  if (!CLIENT_ID) { $("target").textContent = "Falta configurar"; openCfg("Pega el Client ID de tu app de Spotify para empezar."); return; }
+  if (!CLIENT_ID) { showSetup(BADCID ? "El Client ID indicado no es válido: tiene 32 caracteres (cifras y letras de la a a la f)." : ""); return; }
 
   if (P.get("error")) { status("Spotify canceló el acceso.", "err"); history.replaceState(null, "", location.pathname); P = new URLSearchParams(""); }
   else if (P.get("code")) {
